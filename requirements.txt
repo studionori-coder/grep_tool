@@ -1,0 +1,12 @@
+# 画面
+PySide6-Essentials>=6.6
+# Excel (.xlsx 読み込み不要部分は自前解析。出力に使用)
+openpyxl>=3.1
+# 旧形式 Excel (.xls)
+xlrd>=2.0
+# 旧形式 Word/PowerPoint (.doc/.ppt) の OLE 解析
+olefile>=0.46
+# PDF のテキスト抽出 (高速・Apache/BSD ライセンス)
+pypdfium2>=4.20
+# 任意: Excel/Word/PowerPoint を「該当セル・段落・スライド」で開くため (Windows のみ)
+pywin32>=306; sys_platform == "win32"

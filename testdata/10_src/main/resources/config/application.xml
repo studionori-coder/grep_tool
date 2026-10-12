@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<config>
+  <!-- 受注設定 -->
+  <order>
+    <entry key="order.timeout">3000</entry>
+  </order>
+</config>
