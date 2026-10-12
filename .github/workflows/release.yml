@@ -1,10 +1,20 @@
 name: release
 
-# v から始まるタグ (例: v1.0.0) を push すると、Windows で exe をビルドしてリリースに添付する
+# Windows で exe をビルドしてリリースに添付する。
+#  - Actions 画面の「Run workflow」でバージョン (例: v1.0.0) を入れて実行するとタグとリリースを作る
+#  - v から始まるタグを push しても同じ
 on:
   push:
     tags: ["v*"]
   workflow_dispatch:
+    inputs:
+      version:
+        description: "リリースするバージョン (例: v1.0.0)"
+        required: true
+        default: "v1.0.0"
+
+env:
+  VERSION: ${{ github.event.inputs.version || github.ref_name }}
 
 permissions:
   contents: write
@@ -43,7 +53,7 @@ jobs:
       - name: zip にまとめる
         shell: pwsh
         run: |
-          $ver = if ($env:GITHUB_REF_TYPE -eq 'tag') { $env:GITHUB_REF_NAME } else { 'dev' }
+          $ver = $env:VERSION
           Copy-Item README.md dist\GrepTool\
           Compress-Archive -Path dist\GrepTool -DestinationPath "GrepTool-$ver-win64.zip"
           "ZIP_NAME=GrepTool-$ver-win64.zip" | Out-File -FilePath $env:GITHUB_ENV -Append
@@ -54,15 +64,17 @@ jobs:
           path: ${{ env.ZIP_NAME }}
 
       - name: リリースに添付
-        if: github.ref_type == 'tag'
         uses: softprops/action-gh-release@v2
         with:
+          tag_name: ${{ env.VERSION }}
+          name: ${{ env.VERSION }}
+          target_commitish: ${{ github.sha }}
           files: ${{ env.ZIP_NAME }}
           body: |
             Windows 用 Grep ツール（Excel / Word / PowerPoint / PDF / テキストの横断検索）
 
             ## 使い方
-            1. `GrepTool-${{ github.ref_name }}-win64.zip` をダウンロードして展開
+            1. `GrepTool-${{ env.VERSION }}-win64.zip` をダウンロードして展開
             2. `GrepTool\GrepTool.exe` を起動（Python のインストールは不要）
 
             詳しくは同梱の README.md を参照してください。
