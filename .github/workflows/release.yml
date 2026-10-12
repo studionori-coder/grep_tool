@@ -1,0 +1,68 @@
+name: release
+
+# v から始まるタグ (例: v1.0.0) を push すると、Windows で exe をビルドしてリリースに添付する
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: ライブラリをインストール
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt pyinstaller
+
+      - name: exe をビルド
+        run: >
+          pyinstaller --noconfirm --clean --windowed --name GrepTool
+          --collect-all pypdfium2 --collect-all pypdfium2_raw
+          --hidden-import win32timezone --exclude-module tkinter
+          GrepTool.py
+
+      - name: exe で検索できるか確認
+        shell: pwsh
+        run: |
+          $p = Start-Process -FilePath "dist\GrepTool\GrepTool.exe" `
+               -ArgumentList '--selftest', 'testdata', '在庫引当処理' -Wait -PassThru
+          Get-Content greptool_selftest.txt -Encoding utf8
+          $head = Get-Content greptool_selftest.txt -Encoding utf8 -TotalCount 1
+          if ($head -notmatch 'hits=([1-9]\d*)') { throw "selftest でヒットしませんでした: $head" }
+
+      - name: zip にまとめる
+        shell: pwsh
+        run: |
+          $ver = if ($env:GITHUB_REF_TYPE -eq 'tag') { $env:GITHUB_REF_NAME } else { 'dev' }
+          Copy-Item README.md dist\GrepTool\
+          Compress-Archive -Path dist\GrepTool -DestinationPath "GrepTool-$ver-win64.zip"
+          "ZIP_NAME=GrepTool-$ver-win64.zip" | Out-File -FilePath $env:GITHUB_ENV -Append
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: GrepTool-win64
+          path: ${{ env.ZIP_NAME }}
+
+      - name: リリースに添付
+        if: github.ref_type == 'tag'
+        uses: softprops/action-gh-release@v2
+        with:
+          files: ${{ env.ZIP_NAME }}
+          body: |
+            Windows 用 Grep ツール（Excel / Word / PowerPoint / PDF / テキストの横断検索）
+
+            ## 使い方
+            1. `GrepTool-${{ github.ref_name }}-win64.zip` をダウンロードして展開
+            2. `GrepTool\GrepTool.exe` を起動（Python のインストールは不要）
+
+            詳しくは同梱の README.md を参照してください。
